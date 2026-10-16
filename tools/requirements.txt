@@ -1,3 +1,5 @@
 osmium>=3.7.0
 mmh3>=3.0
 imageio-ffmpeg=0.6.0
+edge-tts>=7.3.1
+imageio-ffmpeg>=0.4.9
