@@ -26,6 +26,7 @@ Layout (little-endian):
 
   NAME POOL @ names_offset
   ROADS @ roads_offset (sequential) — same as v1
+    each: flags u8 (bit0=MAJOR, bit1=ONEWAY), name_id u16, n_pts u16, pts…
   RIDX @ index_offset (v2):
     0  magic          b'RIDX'
     4  version        u8 (=1)
@@ -53,6 +54,8 @@ HEADER_SIZE = 48
 HEADER_SIZE_V1 = 40
 NAME_NONE = 0xFFFF
 FLAG_MAJOR = 1
+# Đường một chiều — geometry đã xếp theo chiều đi (OSM oneway=-1 đã đảo lúc build).
+FLAG_ONEWAY = 2
 SCALE = 100000
 
 # ~0.002° ≈ 220m — đủ mịn cho snap/queryAround, nhẹ trên HU
@@ -350,9 +353,28 @@ def _shared_vertices(polys):
     return shared
 
 
+def _road_entry(item):
+    """Chuẩn hoá (name, pts) hoặc (name, pts, oneway) → (name, pts, oneway_flag).
+
+    oneway_flag: 0 = hai chiều, 1 = một chiều theo pts, -1 = một chiều ngược pts
+    (caller thường đã đảo pts khi -1; build_rmap vẫn đảo nếu còn -1).
+    """
+    if item is None:
+        return None, None, 0
+    n = len(item)
+    if n >= 3:
+        return item[0], item[1], int(item[2] or 0)
+    if n >= 2:
+        return item[0], item[1], 0
+    return None, None, 0
+
+
 def build_rmap(tile_cy, tile_cx, chunk_units, roads, cell_units=DEFAULT_CELL_UNITS,
                simplify_units=DEFAULT_SIMPLIFY_UNITS, pad_units=None):
-    """roads: iterable of (name_or_None, list[(lat_i, lon_i)]).
+    """roads: iterable of (name, pts) hoặc (name, pts, oneway).
+
+    oneway: 0 hai chiều; ±1 một chiều (pts theo chiều đi; -1 → đảo trước khi pack).
+    flags u8: bit0 FLAG_MAJOR, bit1 FLAG_ONEWAY.
 
     Clips each road to tile±pad, packs int16 relative coords, dedupes names,
     embeds RIDX cell grid (version 2).
@@ -373,16 +395,21 @@ def build_rmap(tile_cy, tile_cx, chunk_units, roads, cell_units=DEFAULT_CELL_UNI
     packed_roads = []  # (flags, name_id, pts_xy as list of (x,y) i16)
 
     clipped = []
-    for name, pts in roads:
+    for item in roads:
+        name, pts, oneway = _road_entry(item)
         if not pts or len(pts) < 2:
             continue
+        if oneway < 0:
+            pts = list(reversed(pts))
+            oneway = 1
         for poly in clip_polyline(pts, min_la, max_la, min_lo, max_lo):
-            clipped.append((name, poly))
+            clipped.append((name, poly, 1 if oneway else 0))
     if simplify_units > 0 and clipped:
-        keep = _shared_vertices([poly for _n, poly in clipped])
-        clipped = [(nm, simplify_dp(poly, simplify_units, keep)) for nm, poly in clipped]
+        keep = _shared_vertices([poly for _n, poly, _ow in clipped])
+        clipped = [(nm, simplify_dp(poly, simplify_units, keep), ow)
+                   for nm, poly, ow in clipped]
 
-    for name, poly in clipped:
+    for name, poly, oneway in clipped:
         xy = []
         ok = True
         for lat_i, lon_i in poly:
@@ -397,6 +424,8 @@ def build_rmap(tile_cy, tile_cx, chunk_units, roads, cell_units=DEFAULT_CELL_UNI
         if all(xy[i] == xy[0] for i in range(len(xy))):
             continue
         flags = FLAG_MAJOR if is_major_name(name) else 0
+        if oneway:
+            flags |= FLAG_ONEWAY
         nid = NAME_NONE
         if name and len(name.strip()) >= 2:
             key = name.strip()

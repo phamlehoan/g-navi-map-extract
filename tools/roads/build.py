@@ -30,6 +30,7 @@ from lib.common import add_common_args, ensure_osmium, resolve_bbox_and_pbfs
 from lib.osm_names import place_name, road_name
 from roads.rmap_format import (
     DEFAULT_SIMPLIFY_UNITS, SCALE, build_rmap, clip_polyline)
+from routing.format import oneway_dir
 from lib.vn_regions import REGIONS, VIET_NAM_ID, VIET_NAM_LABEL
 
 ensure_osmium()
@@ -192,7 +193,8 @@ class TileBucket(object):
     __slots__ = ("roads",)
 
     def __init__(self):
-        self.roads = []  # (name, [(lat_i, lon_i), ...])
+        # (name, [(lat_i, lon_i), ...], oneway) — oneway: 0 / 1 / -1 (giống routing)
+        self.roads = []
 
 
 class RoadHandler(osmium.SimpleHandler):
@@ -224,15 +226,23 @@ class RoadHandler(osmium.SimpleHandler):
         print("... highways=%d segments=%d tiles=%d (%.0fs)" % (
             self.ways_seen, self.segments, len(self.tiles), now - self._t0), flush=True)
 
-    def _add_segment(self, name, lat_i_list, lon_i_list, is_highway=True, osm_way_id=0):
+    def _add_segment(self, name, lat_i_list, lon_i_list, is_highway=True,
+                     osm_way_id=0, oneway=0):
         n = len(lat_i_list)
         if n < 2:
             return
         pts = list(zip(lat_i_list, lon_i_list))
-        min_la = min(lat_i_list)
-        max_la = max(lat_i_list)
-        min_lo = min(lon_i_list)
-        max_lo = max(lon_i_list)
+        # Đảo geometry khi oneway=-1 → điểm trong .rmap luôn theo chiều đi
+        ow = int(oneway or 0)
+        if ow < 0:
+            pts = list(reversed(pts))
+            ow = 1
+        elif ow > 0:
+            ow = 1
+        min_la = min(p[0] for p in pts)
+        max_la = max(p[0] for p in pts)
+        min_lo = min(p[1] for p in pts)
+        max_lo = max(p[1] for p in pts)
 
         # Only add to roads_name.db for actual highways (not natural/place features)
         if is_highway and name and len(name.strip()) >= 2:
@@ -262,7 +272,7 @@ class RoadHandler(osmium.SimpleHandler):
                     if bucket is None:
                         bucket = TileBucket()
                         self.tiles[key] = bucket
-                    bucket.roads.append((name, pts))
+                    bucket.roads.append((name, pts, ow))
         self.segments += 1
 
     def _way_label(self, tags):
@@ -325,6 +335,7 @@ class RoadHandler(osmium.SimpleHandler):
         if not polys:
             return
 
+        ow = oneway_dir(tags) if is_highway else 0
         for pts in polys:
             i = 0
             n = len(pts)
@@ -333,7 +344,8 @@ class RoadHandler(osmium.SimpleHandler):
                 chunk = pts[i:j]
                 la_i = [p[0] for p in chunk]
                 lo_i = [p[1] for p in chunk]
-                self._add_segment(name, la_i, lo_i, is_highway=is_highway, osm_way_id=w.id)
+                self._add_segment(name, la_i, lo_i, is_highway=is_highway,
+                                  osm_way_id=w.id, oneway=ow)
                 if j >= n:
                     break
                 i = j - CHUNK_OVERLAP
