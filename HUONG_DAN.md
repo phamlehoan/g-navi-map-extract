@@ -212,13 +212,43 @@ Cài lên xe bằng **Smart Sharing** (tab Bản đồ) trong G-Navi Pro hoặc 
 
 ### 7 thư mục vùng routing
 
-1. `mien_nui_phia_bac`
-2. `dong_bang_song_hong`
-3. `bac_trung_bo`
-4. `nam_trung_bo_tay_nguyen`
-5. `dong_nam_bo`
-6. `dong_bang_song_cuu_long`
-7. `bien_dong` - Hoàng Sa / Trường Sa
+Danh sách tỉnh/thành bên dưới theo **34 đơn vị hành chính sau sáp nhập** (Nghị quyết 202/2025/QH15). Nguồn duy nhất của danh sách
+này là `tools/lib/vn_provinces.py` (`PROVINCE_REGION`); dữ liệu thật vẫn xuất theo khung tọa độ (bbox) của từng vùng nên các vùng
+giáp nhau có chồng lấn ở biên.
+
+| Thư mục | Vùng | Tỉnh/thành sau sáp nhập |
+|---|---|---|
+| `mien_nui_phia_bac` | Trung du và miền núi phía Bắc | Tuyên Quang, Lào Cai, Thái Nguyên, Phú Thọ, Cao Bằng, Lạng Sơn, Lai Châu, Điện Biên, Sơn La |
+| `dong_bang_song_hong` | Đồng bằng sông Hồng | Hà Nội, Hải Phòng, Quảng Ninh, Bắc Ninh, Hưng Yên, Ninh Bình |
+| `bac_trung_bo` | Bắc Trung Bộ | Thanh Hóa, Nghệ An, Hà Tĩnh, Quảng Trị, Huế |
+| `nam_trung_bo_tay_nguyen` | Duyên hải Nam Trung Bộ và Tây Nguyên | Đà Nẵng, Quảng Ngãi, Gia Lai, Đắk Lắk, Khánh Hòa, Lâm Đồng |
+| `dong_nam_bo` | Đông Nam Bộ | TP. Hồ Chí Minh, Đồng Nai, Tây Ninh |
+| `dong_bang_song_cuu_long` | Đồng bằng sông Cửu Long | Cần Thơ, Vĩnh Long, Đồng Tháp, Cà Mau, An Giang |
+| `bien_dong` | Biển Đông | Hoàng Sa (thuộc Đà Nẵng), Trường Sa (thuộc Khánh Hòa) |
+| `viet_nam` | Toàn quốc | Cả 34 tỉnh, thành phố |
+
+### Xuất từng tỉnh (mỗi tỉnh một thư mục)
+
+Muốn người dùng chỉ tải/cài **một vài tỉnh** thay vì cả vùng: xuất theo tỉnh. Mỗi tỉnh/thành sau sáp nhập là **một thư mục tên
+`snake_case`** trong `roads_map/` (34 thư mục: `ha_noi`, `hai_phong`, `da_nang`, `ho_chi_minh`, `can_tho`, … — danh sách đầy đủ
+ở `tools/lib/vn_provinces.py`, cột đầu là tên thư mục).
+
+```bat
+:: bản đồ vẽ: mỗi tỉnh một thư mục roads_map/<tỉnh>/r_*.rmap
+python tools\roads.py data_source\vietnam.osm.pbf out --mode provinces --also data_source\hoangsa_truongsa.osm.pbf
+
+:: đường đi (routing) theo từng tỉnh: roads_map/<tỉnh>/routing_index.bin + g_*.rbin
+python tools\routing.py data_source\vietnam.osm.pbf out --mode provinces --tiles
+
+:: tất cả trong một lần (viet_nam + 7 vùng + 34 tỉnh) — chỉ cho bản đồ vẽ
+python tools\roads.py data_source\vietnam.osm.pbf out --mode all
+```
+
+- Tỉnh nào cũng được ghép theo khung bbox của tỉnh (đệm 0,05°), nên hai tỉnh kề nhau có vài ô chồng lấn ở biên — bình thường.
+- `--only <tỉnh>` (routing) để xuất lại một tỉnh.
+- G-Navi Pro đọc được mọi thư mục `roads_map/<tên snake_case của tỉnh>/`. Nén **từng thư mục tỉnh** thành `<tên_tỉnh>.zip` (ví dụ
+  `da_nang.zip`) rồi nhập bằng **Smart Sharing** là app tự đặt vào đúng `roads_map/da_nang/`.
+- Người dùng muốn **tự dựng bản đồ riêng** thì xuất theo các bước trên, rồi cập nhật lên xe bằng Smart Sharing (không cần chờ bản phát hành).
 
 ---
 

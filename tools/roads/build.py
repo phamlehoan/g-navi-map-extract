@@ -32,6 +32,7 @@ from roads.rmap_format import (
     DEFAULT_SIMPLIFY_UNITS, SCALE, build_rmap, clip_polyline)
 from routing.format import oneway_dir
 from lib.vn_regions import REGIONS, VIET_NAM_ID, VIET_NAM_LABEL
+from lib.vn_provinces import mainland_provinces
 
 ensure_osmium()
 import osmium  # noqa: E402
@@ -43,7 +44,12 @@ FINE_CELL = 1000
 # Pad mặc định khi --provinces (độ) — 0.05 quá sát biên, cắt QL/ĐT
 DEFAULT_PROVINCE_PAD = 0.12
 
-MODES = ("vietnam", "regions", "both")
+# vietnam = 1 thư mục viet_nam; regions = 7 vùng; both = viet_nam + 7 vùng;
+# provinces = mỗi tỉnh/thành sau sáp nhập một thư mục snake_case (ha_noi, da_nang, …);
+# all = viet_nam + 7 vùng + từng tỉnh
+MODES = ("vietnam", "regions", "both", "provinces", "all")
+# Đệm bbox tỉnh khi gán ô (độ): ô sát biên tỉnh vẫn nằm trong thư mục tỉnh, đường QL không bị cắt
+PROVINCE_TILE_PAD = 0.05
 
 INCLUDE_HIGHWAY = frozenset({
     "motorway", "motorway_link",
@@ -114,12 +120,40 @@ def regions_for_tile(cy, cx, chunk):
     return [best] if best else []
 
 
+def provinces_for_tile(cy, cx, chunk):
+    """Các tỉnh (bbox đệm PROVINCE_TILE_PAD) chứa tâm ô; ô ngoài mọi bbox (đảo xa) → tỉnh gần nhất."""
+    lat = (cy * chunk + chunk * 0.5) / float(SCALE)
+    lon = (cx * chunk + chunk * 0.5) / float(SCALE)
+    hit = []
+    best = None
+    best_d = 1e18
+    for p in mainland_provinces():
+        min_lon, min_lat, max_lon, max_lat = p["bbox"]
+        min_lon -= PROVINCE_TILE_PAD
+        min_lat -= PROVINCE_TILE_PAD
+        max_lon += PROVINCE_TILE_PAD
+        max_lat += PROVINCE_TILE_PAD
+        if min_lat <= lat <= max_lat and min_lon <= lon <= max_lon:
+            hit.append(p["id"])
+        dlat = max(min_lat - lat, 0.0, lat - max_lat)
+        dlon = max(min_lon - lon, 0.0, lon - max_lon)
+        d = dlat * dlat + dlon * dlon
+        if d < best_d:
+            best_d = d
+            best = p["id"]
+    if hit:
+        return hit
+    return [best] if best else []
+
+
 def folder_ids_for_tile(cy, cx, chunk, mode):
     ids = []
-    if mode in ("vietnam", "both"):
+    if mode in ("vietnam", "both", "all"):
         ids.append(VIET_NAM_ID)
-    if mode in ("regions", "both"):
+    if mode in ("regions", "both", "all"):
         ids.extend(regions_for_tile(cy, cx, chunk))
+    if mode in ("provinces", "all"):
+        ids.extend(provinces_for_tile(cy, cx, chunk))
     seen = set()
     out = []
     for i in ids:
@@ -139,13 +173,27 @@ def write_manifests(out_dir, chunk, mode):
         f.write("index=ridx\n")
         f.write("mode=%s\n" % mode)
         folders = []
-        if mode in ("vietnam", "both"):
+        if mode in ("vietnam", "both", "all"):
             folders.append(VIET_NAM_ID)
-        if mode in ("regions", "both"):
+        if mode in ("regions", "both", "all"):
             folders.extend(r[0] for r in REGIONS)
+        if mode in ("provinces", "all"):
+            folders.extend(p["id"] for p in mainland_provinces())
         f.write("folders=%s\n" % ",".join(folders))
 
-    if mode in ("vietnam", "both"):
+    if mode in ("provinces", "all"):
+        for p in mainland_provinces():
+            d = os.path.join(out_dir, p["id"])
+            os.makedirs(d, exist_ok=True)
+            with open(os.path.join(d, "manifest.txt"), "w", encoding="utf-8") as f:
+                f.write("chunk_units=%d\n" % chunk)
+                f.write("file=r_{cy}_{cx}.rmap\n")
+                f.write("format=rmap\n")
+                f.write("region=%s\n" % p["id"])
+                f.write("label=%s\n" % p["name"])
+                f.write("bbox=%.4f,%.4f,%.4f,%.4f\n" % tuple(p["bbox"]))
+
+    if mode in ("vietnam", "both", "all"):
         d = os.path.join(out_dir, VIET_NAM_ID)
         os.makedirs(d, exist_ok=True)
         with open(os.path.join(d, "manifest.txt"), "w", encoding="utf-8") as f:
@@ -155,7 +203,7 @@ def write_manifests(out_dir, chunk, mode):
             f.write("region=%s\n" % VIET_NAM_ID)
             f.write("label=%s\n" % VIET_NAM_LABEL)
 
-    if mode in ("regions", "both"):
+    if mode in ("regions", "both", "all"):
         for rid, label, *_bbox in REGIONS:
             d = os.path.join(out_dir, rid)
             os.makedirs(d, exist_ok=True)
@@ -478,7 +526,8 @@ def main():
     ap.add_argument("pbf", help="vietnam.osm.pbf")
     ap.add_argument("out_dir", help="Thư mục xuất (roads_name.db + roads_map/)")
     ap.add_argument("--mode", choices=MODES, default="vietnam",
-                    help="vietnam | regions | both (mặc định vietnam; "
+                    help="vietnam | regions | both | provinces (mỗi tỉnh/thành sau sáp nhập một "
+                         "thư mục snake_case) | all (mặc định vietnam; "
                          "khi --provinces tự dùng vietnam)")
     ap.add_argument("--chunk", type=int, default=DEFAULT_CHUNK)
     ap.add_argument("--simplify", type=int, default=DEFAULT_SIMPLIFY_UNITS,

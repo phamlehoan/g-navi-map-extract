@@ -97,6 +97,101 @@ _PROVINCE_ROWS = (
      ("an giang", "kien giang", "phu quoc"), 104.40, 9.35, 105.55, 10.95),
 )
 
+# Vùng chứa từng tỉnh (id vùng trong vn_regions.REGIONS) — chỉ để mô tả/hiển thị; dữ liệu thật xuất theo bbox.
+# Phân vùng theo 6 vùng kinh tế - xã hội, áp cho 34 đơn vị sau sáp nhập (tỉnh nhiều vùng cũ lấy vùng của tỉnh trung tâm).
+PROVINCE_REGION = {
+    # Trung du và miền núi phía Bắc (9)
+    "tuyen_quang": "mien_nui_phia_bac", "lao_cai": "mien_nui_phia_bac", "thai_nguyen": "mien_nui_phia_bac",
+    "phu_tho": "mien_nui_phia_bac", "cao_bang": "mien_nui_phia_bac", "lang_son": "mien_nui_phia_bac",
+    "lai_chau": "mien_nui_phia_bac", "dien_bien": "mien_nui_phia_bac", "son_la": "mien_nui_phia_bac",
+    # Đồng bằng sông Hồng (6)
+    "ha_noi": "dong_bang_song_hong", "hai_phong": "dong_bang_song_hong", "quang_ninh": "dong_bang_song_hong",
+    "bac_ninh": "dong_bang_song_hong", "hung_yen": "dong_bang_song_hong", "ninh_binh": "dong_bang_song_hong",
+    # Bắc Trung Bộ (5)
+    "thanh_hoa": "bac_trung_bo", "nghe_an": "bac_trung_bo", "ha_tinh": "bac_trung_bo",
+    "quang_tri": "bac_trung_bo", "hue": "bac_trung_bo",
+    # Duyên hải Nam Trung Bộ và Tây Nguyên (6)
+    "da_nang": "nam_trung_bo_tay_nguyen", "quang_ngai": "nam_trung_bo_tay_nguyen",
+    "gia_lai": "nam_trung_bo_tay_nguyen", "dak_lak": "nam_trung_bo_tay_nguyen",
+    "khanh_hoa": "nam_trung_bo_tay_nguyen", "lam_dong": "nam_trung_bo_tay_nguyen",
+    # Đông Nam Bộ (3)
+    "ho_chi_minh": "dong_nam_bo", "dong_nai": "dong_nam_bo", "tay_ninh": "dong_nam_bo",
+    # Đồng bằng sông Cửu Long (5)
+    "can_tho": "dong_bang_song_cuu_long", "vinh_long": "dong_bang_song_cuu_long",
+    "dong_thap": "dong_bang_song_cuu_long", "ca_mau": "dong_bang_song_cuu_long",
+    "an_giang": "dong_bang_song_cuu_long",
+}
+
+# Mốc xác định tỉnh theo vị trí: thủ phủ các tỉnh CŨ (trước sáp nhập) → id tỉnh/thành MỚI chứa nó.
+# App dùng "mốc gần nhất" để đoán tỉnh của người dùng (khung bbox quá thô ở vùng giáp ranh, vd. Đà Nẵng/Huế).
+# (vĩ độ, kinh độ, id tỉnh mới) — sai số ~0.1° là đủ, chỉ để gọi tên tỉnh/chọn vùng.
+PROVINCE_ANCHORS = (
+    (21.03, 105.85, "ha_noi"),
+    (22.67, 106.25, "cao_bang"),
+    (21.39, 103.02, "dien_bien"),
+    (22.40, 103.46, "lai_chau"),
+    (21.33, 103.91, "son_la"),
+    (21.85, 106.76, "lang_son"),
+    (20.95, 107.08, "quang_ninh"),
+    (19.81, 105.78, "thanh_hoa"),
+    (18.68, 105.68, "nghe_an"),
+    (18.34, 105.91, "ha_tinh"),
+    (16.46, 107.59, "hue"),
+    (21.82, 105.21, "tuyen_quang"),
+    (22.82, 104.98, "tuyen_quang"),    # Hà Giang cũ
+    (22.48, 103.97, "lao_cai"),
+    (21.72, 104.90, "lao_cai"),        # Yên Bái cũ
+    (21.59, 105.84, "thai_nguyen"),
+    (22.15, 105.83, "thai_nguyen"),    # Bắc Kạn cũ
+    (21.32, 105.40, "phu_tho"),
+    (21.31, 105.60, "phu_tho"),        # Vĩnh Phúc cũ
+    (20.82, 105.34, "phu_tho"),        # Hòa Bình cũ
+    (21.19, 106.07, "bac_ninh"),
+    (21.27, 106.19, "bac_ninh"),       # Bắc Giang cũ
+    (20.65, 106.05, "hung_yen"),
+    (20.45, 106.34, "hung_yen"),       # Thái Bình cũ
+    (20.86, 106.68, "hai_phong"),
+    (20.94, 106.33, "hai_phong"),      # Hải Dương cũ
+    (20.25, 105.97, "ninh_binh"),
+    (20.54, 105.91, "ninh_binh"),      # Hà Nam cũ
+    (20.43, 106.18, "ninh_binh"),      # Nam Định cũ
+    (16.82, 107.10, "quang_tri"),
+    (17.47, 106.62, "quang_tri"),      # Quảng Bình cũ
+    (16.05, 108.20, "da_nang"),
+    (15.57, 108.48, "da_nang"),        # Quảng Nam cũ
+    (15.12, 108.80, "quang_ngai"),
+    (14.35, 108.00, "quang_ngai"),     # Kon Tum cũ
+    (13.98, 108.00, "gia_lai"),
+    (13.78, 109.22, "gia_lai"),        # Bình Định cũ
+    (12.24, 109.19, "khanh_hoa"),
+    (11.56, 108.99, "khanh_hoa"),      # Ninh Thuận cũ
+    (11.94, 108.44, "lam_dong"),
+    (12.00, 107.69, "lam_dong"),       # Đắk Nông cũ
+    (10.93, 108.10, "lam_dong"),       # Bình Thuận cũ
+    (12.67, 108.04, "dak_lak"),
+    (13.09, 109.31, "dak_lak"),        # Phú Yên cũ
+    (10.78, 106.70, "ho_chi_minh"),
+    (10.35, 107.08, "ho_chi_minh"),    # Bà Rịa - Vũng Tàu cũ
+    (10.99, 106.65, "ho_chi_minh"),    # Bình Dương cũ
+    (10.95, 106.82, "dong_nai"),
+    (11.53, 106.89, "dong_nai"),       # Bình Phước cũ
+    (11.31, 106.10, "tay_ninh"),
+    (10.54, 106.41, "tay_ninh"),       # Long An cũ
+    (10.04, 105.78, "can_tho"),
+    (9.60, 105.97, "can_tho"),         # Sóc Trăng cũ
+    (9.78, 105.47, "can_tho"),         # Hậu Giang cũ
+    (10.25, 105.97, "vinh_long"),
+    (10.24, 106.38, "vinh_long"),      # Bến Tre cũ
+    (9.93, 106.34, "vinh_long"),       # Trà Vinh cũ
+    (10.46, 105.63, "dong_thap"),
+    (10.36, 106.36, "dong_thap"),      # Tiền Giang cũ
+    (9.18, 105.15, "ca_mau"),
+    (9.29, 105.72, "ca_mau"),          # Bạc Liêu cũ
+    (10.38, 105.43, "an_giang"),
+    (10.01, 105.08, "an_giang"),       # Kiên Giang cũ
+    (10.23, 103.97, "an_giang"),       # Phú Quốc
+)
+
 # Biển Đông — Hoàng Sa / Trường Sa (cần PBF riêng từ BBBike)
 BIEN_DONG = ("bien_dong", "Biển Đông (Hoàng Sa – Trường Sa)",
              ("bien dong", "hoang sa", "truong sa"), 110.5, 7.0, 117.5, 17.8)
@@ -132,6 +227,7 @@ def all_provinces():
             "name": name,
             "aliases": tuple(aliases),
             "bbox": bbox,
+            "region": PROVINCE_REGION.get(pid),
         })
     pid, name, aliases = BIEN_DONG[0], BIEN_DONG[1], BIEN_DONG[2]
     out.append({
@@ -139,9 +235,20 @@ def all_provinces():
         "name": name,
         "aliases": tuple(aliases),
         "bbox": BIEN_DONG[3:7],
+        "region": "bien_dong",
         "needs_bien_dong_pbf": True,
     })
     return out
+
+
+def mainland_provinces():
+    """34 tỉnh/thành sau sáp nhập (không gồm bien_dong) — mỗi đơn vị một thư mục snake_case khi xuất --mode provinces."""
+    return [p for p in all_provinces() if p["id"] != BIEN_DONG[0]]
+
+
+def provinces_of_region(region_id):
+    """Tên các tỉnh/thành thuộc một vùng (để hiển thị)."""
+    return [p["name"] for p in mainland_provinces() if p["region"] == region_id]
 
 
 def resolve_province(token):

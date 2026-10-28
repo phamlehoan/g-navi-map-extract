@@ -40,6 +40,7 @@ from routing.tiles import (
     split_graph_to_tiles,
 )
 from lib.vn_regions import REGIONS, VIET_NAM_ID
+from lib.vn_provinces import mainland_provinces
 
 ensure_osmium()
 import osmium  # noqa: E402
@@ -366,11 +367,16 @@ def _maybe_build_meta(region_dir, enable_ch=False, enable_alt=False):
             print("==> accel skip/failed:", e, flush=True)
 
 
-def write_regions_manifest(roads_map_dir, written):
+def write_regions_manifest(roads_map_dir, written, provinces=False):
+    """routing_regions.txt: danh sách vùng (hoặc tỉnh khi provinces=True) kèm bbox và có routing hay không."""
     path = os.path.join(roads_map_dir, "routing_regions.txt")
+    if provinces:
+        rows = [(p["id"], p["name"]) + tuple(p["bbox"]) for p in mainland_provinces()]
+    else:
+        rows = list(REGIONS)
     with open(path, "w", encoding="utf-8") as f:
         f.write("# id\tlabel\tminLon\tminLat\tmaxLon\tmaxLat\thas_routing\n")
-        for rid, label, min_lon, min_lat, max_lon, max_lat in REGIONS:
+        for rid, label, min_lon, min_lat, max_lon, max_lat in rows:
             ok = "1" if rid in written else "0"
             f.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\n" % (
                 rid, label, min_lon, min_lat, max_lon, max_lat, ok))
@@ -381,8 +387,9 @@ def main():
     ap = argparse.ArgumentParser(description="OSM PBF → routing.bin / tiles")
     ap.add_argument("pbf", help="vietnam.osm.pbf")
     ap.add_argument("out", help="Thư mục pack (roads_map/…) hoặc file .bin")
-    ap.add_argument("--mode", default="regions", choices=("regions", "file"),
-                    help="regions → roads_map/<id>/… ; file → 1 file (+ --bbox/--provinces)")
+    ap.add_argument("--mode", default="regions", choices=("regions", "provinces", "file"),
+                    help="regions → roads_map/<id vùng>/… ; provinces → roads_map/<id tỉnh snake_case>/… "
+                         "(34 tỉnh/thành sau sáp nhập); file → 1 file (+ --bbox/--provinces)")
     ap.add_argument("--tiles", action="store_true",
                     help="Cắt g_*.rbin + routing_index.bin (tránh OOM trên HU)")
     ap.add_argument("--tile-deg", type=float, default=DEFAULT_TILE_DEG,
@@ -444,7 +451,11 @@ def main():
     roads_map = os.path.join(args.out, "roads_map")
     os.makedirs(roads_map, exist_ok=True)
     written = set()
-    for rid, label, min_lon, min_lat, max_lon, max_lat in REGIONS:
+    if args.mode == "provinces":
+        todo = [(p["id"], p["name"]) + tuple(p["bbox"]) for p in mainland_provinces()]
+    else:
+        todo = list(REGIONS)
+    for rid, label, min_lon, min_lat, max_lon, max_lat in todo:
         if args.only and args.only != rid:
             continue
         rb = pad_bbox(min_lon, min_lat, max_lon, max_lat, args.pad)
@@ -454,10 +465,11 @@ def main():
                        tiles=args.tiles, tile_deg=args.tile_deg, tile_pad=args.tile_pad,
                        enable_ch=args.ch, enable_alt=args.alt):
             written.add(rid)
-    write_regions_manifest(roads_map, written)
-    print("\n==> Done regions: %s" % ", ".join(sorted(written)), flush=True)
-    print("    Smart Sharing → tab Bản đồ → upload từng thư mục vùng trong roads_map/",
-          flush=True)
+    write_regions_manifest(roads_map, written, provinces=(args.mode == "provinces"))
+    print("\n==> Done %s: %s" % ("provinces" if args.mode == "provinces" else "regions",
+                               ", ".join(sorted(written))), flush=True)
+    print("    Smart Sharing → tab Bản đồ → upload từng thư mục %s trong roads_map/" % (
+        "tỉnh" if args.mode == "provinces" else "vùng"), flush=True)
 
 
 if __name__ == "__main__":
