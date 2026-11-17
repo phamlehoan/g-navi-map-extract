@@ -208,7 +208,7 @@ out/
     ...
 ```
 
-Cài lên xe bằng **Smart Sharing** (tab Bản đồ) trong G-Navi Pro hoặc copy trực tiếp các files output. trong 2 thư mục "alert_data" và "roads_map" trong thư mục "GNaviAlerts" đã được cấp quyền trong app (Vui lòng vào mục Cài đặt/Cấp quyền ghi bộ nhớ trong G-Navi Pro để kiểm tra thư mục đã chỉ định nơi chứa dữ liệu).
+Cài lên xe bằng **Smart Sharing** (tab Bản đồ) trong Govi hoặc copy trực tiếp các files output. trong 2 thư mục "alert_data" và "roads_map" trong thư mục "GNaviAlerts" đã được cấp quyền trong app (Vui lòng vào mục Cài đặt/Cấp quyền ghi bộ nhớ trong Govi để kiểm tra thư mục đã chỉ định nơi chứa dữ liệu).
 
 ### 7 thư mục vùng routing
 
@@ -246,7 +246,7 @@ python tools\roads.py data_source\vietnam.osm.pbf out --mode all
 
 - Tỉnh nào cũng được ghép theo khung bbox của tỉnh (đệm 0,05°), nên hai tỉnh kề nhau có vài ô chồng lấn ở biên — bình thường.
 - `--only <tỉnh>` (routing) để xuất lại một tỉnh.
-- G-Navi Pro đọc được mọi thư mục `roads_map/<tên snake_case của tỉnh>/`. Nén **từng thư mục tỉnh** thành `<tên_tỉnh>.zip` (ví dụ
+- Govi đọc được mọi thư mục `roads_map/<tên snake_case của tỉnh>/`. Nén **từng thư mục tỉnh** thành `<tên_tỉnh>.zip` (ví dụ
   `da_nang.zip`) rồi nhập bằng **Smart Sharing** là app tự đặt vào đúng `roads_map/da_nang/`.
 - Người dùng muốn **tự dựng bản đồ riêng** thì xuất theo các bước trên, rồi cập nhật lên xe bằng Smart Sharing (không cần chờ bản phát hành).
 

@@ -9,9 +9,10 @@ ZH_KEYS = frozenset((
     "name:zh_pinyin", "name:zh-Latn-pinyin",
 ))
 
+# Chỉ bỏ "Đường " (tiết kiệm bộ nhớ, HU thêm lại khi hiển thị). KHÔNG bỏ "Phố " — giữ nguyên để HU
+# hiển thị "Phố Huế" chứ không thành "Đường Huế".
 ROAD_PREFIXES = (
     "Đường ", "đường ", "Duong ", "duong ",
-    "Phố ", "phố ", "Pho ", "pho ",
 )
 
 
